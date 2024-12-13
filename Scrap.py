@@ -12,7 +12,6 @@ import json
 
 app = Flask(__name__)
 
-# Конфигурация базы данных
 DB_CONFIG = {
     'host': 'db',
     'user': 'root',
@@ -21,11 +20,10 @@ DB_CONFIG = {
     'charset': 'utf8mb4'
 }
 
-# Функция для парсинга сайта и записи данных в БД
 @app.route('/')
 def index():
     options = Options()
-    options.add_argument("--headless")  # Режим без графического интерфейса
+    options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
@@ -89,33 +87,6 @@ def index():
 
     finally:
         driver.quit()
-
-# Новый маршрут для получения данных из базы данных
-@app.route('/get_films')
-def get_films():
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT title, description, time FROM films")
-    rows = cursor.fetchall()
-
-    decoded_data = []
-
-    for row in rows:
-        title = row[0]
-        description = json.loads(row[1])  # Декодирование JSON строки
-        time = json.loads(row[2])         # Декодирование JSON строки
-
-        decoded_data.append({
-            "title": title,
-            "description": description,
-            "time": time
-        })
-
-    cursor.close()
-    conn.close()
-
-    return jsonify(decoded_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
