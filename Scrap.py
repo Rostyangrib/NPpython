@@ -5,24 +5,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
-from flask import Flask, jsonify
 import mysql.connector
 import json
+from database import DB_CONFIG
 
-app = Flask(__name__)
-
-DB_CONFIG = {
-    'host': 'db',
-    'user': 'root',
-    'password': '123',
-    'database': 'Films',
-    'charset': 'utf8mb4'
-}
-
-@app.route('/')
-def index():
-    options = Options()
+def scrape_films():
+    options = webdriver.ChromeOptions()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -42,7 +30,8 @@ def index():
 
         films = soup.find_all('div', class_='releases-item__info')
 
-        result = []
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
 
         for film in films:
             try:
@@ -61,15 +50,7 @@ def index():
                     'div', class_='seance-item__time text text--size-18')
                 time_txt = time_sel.text.strip()
 
-                result.append({
-                    "title": title,
-                    "description": span_texts,
-                    "time": time_txt
-                })
-
-                # Сохранение в базу данных
-                conn = mysql.connector.connect(**DB_CONFIG)
-                cursor = conn.cursor()
+                # Сохранение в базу
                 cursor.execute("""
                     INSERT INTO films (title, description, time) 
                     VALUES (%s, %s, %s)
@@ -77,16 +58,12 @@ def index():
                     title, json.dumps(span_texts), json.dumps([time_txt])
                 ))
                 conn.commit()
-                cursor.close()
-                conn.close()
 
             except AttributeError:
                 continue
 
-        return jsonify({"status": "Данные успешно добавлены в базу данных", "data": result})
+        cursor.close()
+        conn.close()
 
     finally:
         driver.quit()
-
-if __name__ == '__main__':
-    app.run(debug=True)
